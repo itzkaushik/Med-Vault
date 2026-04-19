@@ -1,6 +1,17 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
+
+// Open URL in in-app browser (native) or new tab (web)
+async function openExternal(url: string) {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url, presentationStyle: "popover" });
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
 
 interface AIProvider {
   id: string;
@@ -129,13 +140,13 @@ export default function AIWorkspaceView() {
             {/* Provider Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {AI_PROVIDERS.map((provider) => (
-                <a
+                <button
                   key={provider.id}
-                  href={provider.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setSelectedProvider(provider)}
-                  className="group flex items-center gap-3 p-4 rounded-[var(--radius-lg)] border transition-all duration-200 hover-lift active:scale-[0.98]"
+                  onClick={() => {
+                    setSelectedProvider(provider);
+                    openExternal(provider.url);
+                  }}
+                  className="group flex items-center gap-3 p-4 rounded-[var(--radius-lg)] border transition-all duration-200 hover-lift active:scale-[0.98] text-left"
                   style={{
                     background: selectedProvider.id === provider.id ? `${provider.color}10` : "var(--bg-secondary)",
                     border: selectedProvider.id === provider.id ? `1px solid ${provider.color}40` : "1px solid var(--border-subtle)",
@@ -154,7 +165,7 @@ export default function AIWorkspaceView() {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[var(--text-muted)] group-hover:text-[var(--accent-secondary)] transition-colors">
                     <path d="M12 4L4 12M12 4H6M12 4V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                </a>
+                </button>
               ))}
             </div>
 

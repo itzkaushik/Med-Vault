@@ -5,18 +5,7 @@ const config: CapacitorConfig = {
   appName: 'MedVault',
   webDir: 'out',
   server: {
-    // Allow all iframe embeds in native apps (ChatGPT, Gemini, etc.)
-    allowNavigation: [
-      'chatgpt.com',
-      'gemini.google.com',
-      'claude.ai',
-      'copilot.microsoft.com',
-      'www.perplexity.ai',
-      '*.openai.com',
-      '*.google.com',
-      '*.anthropic.com',
-      '*.microsoft.com',
-    ],
+    // No allowNavigation — external URLs will open in system browser, not trapped in WebView
   },
   plugins: {
     SplashScreen: {
