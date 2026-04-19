@@ -46,7 +46,7 @@ export default function SubjectView({ subjectId, onNavigate }: SubjectViewProps)
 
       {/* Subject Header */}
       <div
-        className="relative overflow-hidden rounded-[var(--radius-xl)] p-6 lg:p-8 mb-6"
+        className="relative overflow-hidden rounded-[var(--radius-xl)] p-4 sm:p-6 lg:p-8 mb-6"
         style={{
           background: `linear-gradient(135deg, ${subject.color}18, ${subject.color}08, transparent)`,
           border: "1px solid var(--border-subtle)",
@@ -54,7 +54,7 @@ export default function SubjectView({ subjectId, onNavigate }: SubjectViewProps)
       >
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 pointer-events-none" style={{ background: `radial-gradient(circle, ${subject.color}, transparent)` }} />
 
-        <div className="relative z-10 flex items-start justify-between">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-start gap-4 sm:justify-between">
           <div className="flex items-center gap-4">
             <div
               className="w-14 h-14 rounded-[var(--radius-lg)] flex items-center justify-center text-3xl"
@@ -63,7 +63,7 @@ export default function SubjectView({ subjectId, onNavigate }: SubjectViewProps)
               {subject.icon}
             </div>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-[var(--text-primary)]">{subject.name}</h1>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[var(--text-primary)]">{subject.name}</h1>
               <p className="text-sm text-[var(--text-secondary)] mt-1">{subject.description}</p>
               <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-tertiary)]">
                 <span>{topics.length} topics</span>

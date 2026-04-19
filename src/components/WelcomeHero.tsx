@@ -17,7 +17,7 @@ export default function WelcomeHero() {
   return (
     <section className="mb-8">
       <div
-        className="relative overflow-hidden rounded-[var(--radius-xl)] p-8 lg:p-10"
+        className="relative overflow-hidden rounded-[var(--radius-xl)] p-5 sm:p-8 lg:p-10"
         style={{
           background:
             "linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.08), rgba(0, 184, 148, 0.06))",
@@ -36,16 +36,16 @@ export default function WelcomeHero() {
 
         <div className="relative z-10">
           <p className="text-sm font-medium text-[var(--accent-secondary)] mb-1">{greeting} 👋</p>
-          <h1 className="text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-3">
+          <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold text-[var(--text-primary)] mb-2 sm:mb-3">
             Welcome to <span style={{ color: "var(--accent-secondary)" }}>MedVault</span>
           </h1>
-          <p className="text-[var(--text-secondary)] text-base max-w-2xl leading-relaxed">
+          <p className="text-[var(--text-secondary)] text-sm sm:text-base max-w-2xl leading-relaxed">
             Your intelligent medical knowledge base. Organize notes by subject and topic,
             link concepts together, and study smarter with your AI Co-pilot.
           </p>
 
           {/* Quick Stats */}
-          <div className="flex flex-wrap gap-4 mt-6">
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-4 sm:mt-6">
             {[
               { label: "Subjects", value: subjects.length.toString(), icon: "📂" },
               { label: "Notes", value: notes.length.toString(), icon: "📝" },
@@ -53,7 +53,7 @@ export default function WelcomeHero() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] glass hover-lift cursor-default"
+                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-[var(--radius-md)] glass hover-lift cursor-default"
               >
                 <span className="text-xl">{stat.icon}</span>
                 <div>

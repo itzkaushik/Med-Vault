@@ -19,7 +19,7 @@ const TextbookView = dynamic(() => import("@/components/TextbookView"), { ssr: f
 const AIWorkspaceView = dynamic(() => import("@/components/AIWorkspaceView"), { ssr: false });
 
 export default function HomePage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [activeView, setActiveView] = useState<string>("home");
   const [subjectModal, setSubjectModal] = useState<{ open: boolean; editId: string | null }>({ open: false, editId: null });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -106,7 +106,7 @@ export default function HomePage() {
           onNewNote={handleNewNote}
           onSearch={() => setSearchOpen(true)}
         />
-        <div className={`flex-1 overflow-y-auto ${activeView === 'ai' ? '' : 'p-6 lg:p-8'}`}>
+        <div className={`flex-1 overflow-y-auto ${activeView === 'ai' ? '' : 'p-3 sm:p-6 lg:p-8'}`}>
           {renderContent()}
         </div>
       </main>

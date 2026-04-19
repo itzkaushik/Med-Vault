@@ -11,14 +11,14 @@ interface TopBarProps {
 export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarProps) {
   return (
     <header
-      className="h-[var(--topbar-height)] flex items-center justify-between px-4 lg:px-6 border-b border-[var(--border-subtle)] shrink-0"
+      className="h-[var(--topbar-height)] flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b border-[var(--border-subtle)] shrink-0 gap-2"
       style={{ background: "rgba(12, 14, 20, 0.6)", backdropFilter: "blur(12px)" }}
     >
-      {/* Left: Mobile Menu + Breadcrumb */}
-      <div className="flex items-center gap-3">
+      {/* Left: Menu + Breadcrumb */}
+      <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={onToggleSidebar}
-          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-secondary)]"
+          className="w-9 h-9 flex items-center justify-center rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-secondary)]"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M2.5 4.5H15.5M2.5 9H15.5M2.5 13.5H15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -32,10 +32,10 @@ export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarP
       </div>
 
       {/* Center: Search (clickable — opens Command Palette) */}
-      <div className="flex-1 max-w-md mx-4">
+      <div className="flex-1 max-w-md mx-1 sm:mx-4 min-w-0">
         <button
           onClick={onSearch}
-          className="w-full relative flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-200 hover:border-[var(--border-strong)]"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-200 hover:border-[var(--border-strong)]"
           style={{
             background: "var(--bg-tertiary)",
             border: "1px solid var(--border-subtle)",
@@ -49,21 +49,21 @@ export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarP
               strokeLinecap="round"
             />
           </svg>
-          <span className="text-sm text-[var(--text-muted)] flex-1 text-left">
-            Search notes, subjects, topics...
+          <span className="text-sm text-[var(--text-muted)] truncate">
+            Search...
           </span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)] bg-[var(--bg-primary)] rounded border border-[var(--border-subtle)]">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)] bg-[var(--bg-primary)] rounded border border-[var(--border-subtle)] shrink-0">
             ⌘K
           </kbd>
         </button>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {/* New Note Button */}
         <button
           onClick={onNewNote}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-[var(--radius-md)] text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
           style={{
             background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))",
             boxShadow: "var(--shadow-glow)",
