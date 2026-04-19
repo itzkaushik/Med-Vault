@@ -68,13 +68,11 @@ function loadSavedPrompts(): SavedPrompt[] {
 
 export default function AIWorkspaceView() {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AI_PROVIDERS[0]);
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
-  const [splitRatio, setSplitRatio] = useState(50); // percent for left panel
+  const [splitRatio, setSplitRatio] = useState(50);
   const [showPromptPanel, setShowPromptPanel] = useState(true);
   const [promptText, setPromptText] = useState("");
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>(loadSavedPrompts);
   const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -190,7 +188,6 @@ export default function AIWorkspaceView() {
                 key={provider.id}
                 onClick={() => {
                   setSelectedProvider(provider);
-                  setIsIframeLoaded(false);
                 }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-md)] text-xs font-medium transition-all duration-150"
                 style={{
@@ -371,29 +368,70 @@ export default function AIWorkspaceView() {
           </>
         )}
 
-        {/* Right: AI Iframe */}
-        <div className="flex-1 relative" style={{ background: "#ffffff" }}>
-          {!isIframeLoaded && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center" style={{ background: "var(--bg-primary)" }}>
-              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mb-3" style={{ borderColor: selectedProvider.color, borderTopColor: "transparent" }} />
-              <p className="text-sm text-[var(--text-secondary)]">
-                Loading {selectedProvider.name}...
-              </p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                You may need to sign in with your account
-              </p>
+        {/* Right: AI Provider Panel */}
+        <div className="flex-1 relative flex items-center justify-center p-6 sm:p-10" style={{ background: "var(--bg-primary)" }}>
+          <div className="max-w-sm w-full text-center">
+            {/* Provider Icon */}
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5 transition-all duration-300"
+              style={{ background: `${selectedProvider.color}15`, boxShadow: `0 0 40px ${selectedProvider.color}20` }}
+            >
+              {selectedProvider.icon}
             </div>
-          )}
-          <iframe
-            ref={iframeRef}
-            key={selectedProvider.id}
-            src={selectedProvider.url}
-            className="w-full h-full border-none"
-            onLoad={() => setIsIframeLoaded(true)}
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
-            allow="clipboard-read; clipboard-write"
-            title={`${selectedProvider.name} AI`}
-          />
+
+            {/* Provider Name */}
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-1">
+              {selectedProvider.name}
+            </h2>
+            <p className="text-sm text-[var(--text-tertiary)] mb-6">
+              Use your {selectedProvider.name} account to get AI-powered study help
+            </p>
+
+            {/* Open Button */}
+            <a
+              href={selectedProvider.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--radius-md)] text-sm font-semibold text-white transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, ${selectedProvider.color}, ${selectedProvider.color}cc)`,
+                boxShadow: `0 4px 20px ${selectedProvider.color}40`,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M12 4L4 12M12 4H6M12 4V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Open {selectedProvider.name}
+            </a>
+
+            {/* Steps */}
+            <div className="mt-8 text-left space-y-3">
+              {[
+                { step: "1", text: "Copy a prompt from the left panel", icon: "📋" },
+                { step: "2", text: `Paste it into ${selectedProvider.name}`, icon: "💬" },
+                { step: "3", text: "Copy the answer back into your notes", icon: "📝" },
+              ].map((s) => (
+                <div key={s.step} className="flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)]" style={{ background: "var(--bg-secondary)" }}>
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                    style={{ background: `${selectedProvider.color}20`, color: selectedProvider.color }}
+                  >
+                    {s.step}
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">{s.text}</span>
+                  <span className="ml-auto text-sm">{s.icon}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Native app tip */}
+            <div
+              className="mt-6 px-3 py-2.5 rounded-[var(--radius-md)] text-[10px] text-[var(--text-muted)] leading-relaxed"
+              style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)" }}
+            >
+              💡 <strong className="text-[var(--text-tertiary)]">Tip:</strong> Install the MedVault Android app for a fully embedded AI experience — no tab switching needed!
+            </div>
+          </div>
         </div>
       </div>
     </div>
