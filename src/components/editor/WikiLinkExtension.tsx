@@ -1,11 +1,11 @@
 "use client";
 
 import { Node, mergeAttributes } from "@tiptap/core";
-import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
+import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import React from "react";
 
 // ─── WikiLink Node View (React component) ────────────────────
-function WikiLinkView({ node }: { node: { attrs: { noteTitle: string; noteId: string } } }) {
+function WikiLinkView({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper as="span" className="inline">
       <span
