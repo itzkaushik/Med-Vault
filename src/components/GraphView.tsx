@@ -9,6 +9,10 @@ interface GraphNode {
   val: number;
   color: string;
   type: "subject" | "topic" | "note";
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
 }
 
 interface GraphLink {
