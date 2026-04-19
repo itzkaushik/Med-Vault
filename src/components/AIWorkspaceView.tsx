@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import AIChatView from "./AIChatView";
 
 // Open URL in in-app browser (native) or new tab (web)
 async function openExternal(url: string) {
@@ -58,7 +59,7 @@ const PROMPT_TEMPLATES = [
 
 export default function AIWorkspaceView() {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AI_PROVIDERS[0]);
-  const [activeTab, setActiveTab] = useState<"prompts" | "providers">("providers");
+  const [activeTab, setActiveTab] = useState<"chat" | "prompts" | "providers">("chat");
   const [promptText, setPromptText] = useState("");
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>(loadSavedPrompts);
   const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
@@ -110,6 +111,16 @@ export default function AIWorkspaceView() {
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 bg-[var(--bg-tertiary)] rounded-[var(--radius-md)] p-0.5">
           <button
+            onClick={() => setActiveTab("chat")}
+            className="px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all"
+            style={{
+              background: activeTab === "chat" ? "var(--accent-glow)" : "transparent",
+              color: activeTab === "chat" ? "var(--accent-secondary)" : "var(--text-tertiary)",
+            }}
+          >
+            💬 Chat
+          </button>
+          <button
             onClick={() => setActiveTab("providers")}
             className="px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all"
             style={{
@@ -133,8 +144,11 @@ export default function AIWorkspaceView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === "providers" ? (
+      <div className={`flex-1 ${activeTab === 'chat' ? '' : 'overflow-y-auto'} flex flex-col min-h-0`}>
+        {activeTab === "chat" ? (
+          // ─── BUILT-IN AI CHAT ──────────────────────────
+          <AIChatView />
+        ) : activeTab === "providers" ? (
           // ─── AI PROVIDERS TAB ──────────────────────────
           <div className="p-3 sm:p-6 max-w-2xl mx-auto">
             {/* Provider Cards Grid */}
