@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── SUBJECTS ────────────────────────────────────────────────
+// Top-level containers: Anatomy, Biochemistry, Pharmacology, etc.
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?  // emoji or icon identifier
+  color       String?  // hex color for the subject badge
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics Topic[]
+  notes  Note[]
+
+  @@map("subjects")
+}
+
+// ─── TOPICS ──────────────────────────────────────────────────
+// Sub-categories within a subject: Upper Limb, Enzymes, NSAIDs, etc.
+model Topic {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  notes Note[]
+
+  @@unique([subjectId, name])
+  @@map("topics")
+}
+
+// ─── NOTES ───────────────────────────────────────────────────
+// The actual study material, written in rich text / markdown.
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?  @db.Text // Rich text / markdown content
+  excerpt   String?  // Short preview text
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  topicId String?
+  topic   Topic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  // Bidirectional linking (Obsidian-style)
+  outgoingLinks NoteLink[] @relation("OutgoingLinks")
+  incomingLinks NoteLink[] @relation("IncomingLinks")
+
+  tags NoteTag[]
+
+  @@map("notes")
+}
+
+// ─── NOTE LINKS ──────────────────────────────────────────────
+// Represents a [[wiki-link]] from one note to another.
+model NoteLink {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  sourceId String
+  source   Note   @relation("OutgoingLinks", fields: [sourceId], references: [id], onDelete: Cascade)
+
+  targetId String
+  target   Note   @relation("IncomingLinks", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId])
+  @@map("note_links")
+}
+
+// ─── TAGS ────────────────────────────────────────────────────
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  color String?
+  notes NoteTag[]
+
+  @@map("tags")
+}
+
+model NoteTag {
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@map("note_tags")
+}
+
+// ─── RESOURCES / TEXTBOOKS ───────────────────────────────────
+model Resource {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // "pdf", "image", "link", etc.
+  url       String   // file path or URL
+  size      BigInt?  // file size in bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("resources")
+}
