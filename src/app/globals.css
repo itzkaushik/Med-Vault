@@ -417,3 +417,20 @@ body {
   font-style: italic;
 }
 
+
+.light {
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --bg-elevated: #e9ecef;
+  --bg-hover: #e2e8f0;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-tertiary: #6c757d;
+  --text-muted: #adb5bd;
+  --accent-primary: #5a4bcf;
+  --accent-primary-hover: #483ab8;
+  --accent-secondary: #7b6ae6;
+  --accent-glow: rgba(90, 75, 207, 0.15);
+  --accent-glow-strong: rgba(90, 75, 207, 0.3);
+}

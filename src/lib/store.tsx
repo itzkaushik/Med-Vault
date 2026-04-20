@@ -56,6 +56,7 @@ export interface StoreState {
   noteLinks: NoteLink[];
   activeSubjectId: string | null;
   activeTopicId: string | null;
+  theme: 'dark' | 'light';
 }
 
 interface StoreActions {
@@ -80,6 +81,7 @@ interface StoreActions {
   addNoteLink: (sourceId: string, targetId: string) => void;
   removeNoteLink: (sourceId: string, targetId: string) => void;
   importState: (newState: Partial<StoreState>) => void;
+  setTheme: (theme: 'dark' | 'light') => void;
   setActiveContext: (subjectId: string | null, topicId: string | null) => void;
 }
 
@@ -106,7 +108,7 @@ const DEFAULT_SUBJECTS: Subject[] = [
   { id: "s8", name: "Community Medicine", description: "Preventive & social medicine", icon: "🏥", color: "#0984e3", order: 7, createdAt: INITIAL_TIMESTAMP, updatedAt: INITIAL_TIMESTAMP },
 ];
 
-const DEFAULT_STATE: StoreState = { subjects: DEFAULT_SUBJECTS, topics: [], notes: [], noteLinks: [], activeSubjectId: null, activeTopicId: null };
+const DEFAULT_STATE: StoreState = { subjects: DEFAULT_SUBJECTS, topics: [], notes: [], noteLinks: [], activeSubjectId: null, activeTopicId: null, theme: 'dark' };
 
 function loadFromStorage(): StoreState | null {
   if (typeof window === "undefined") return null;
@@ -121,6 +123,7 @@ function loadFromStorage(): StoreState | null {
         noteLinks: parsed.noteLinks || [],
         activeSubjectId: parsed.activeSubjectId || null,
         activeTopicId: parsed.activeTopicId || null,
+        theme: parsed.theme || 'dark',
       };
     }
   } catch {
@@ -147,6 +150,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
   }, [state, hydrated]);
+
+  // Apply theme class to html/body
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (state.theme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, [state.theme]);
 
   // ─── Subject CRUD ──────────────────────────────────────────
   const addSubject = useCallback(
@@ -313,6 +329,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const setTheme = useCallback((theme: 'dark' | 'light') => {
+    setState((prev) => ({ ...prev, theme }));
+  }, []);
+
   const setActiveContext = useCallback((subjectId: string | null, topicId: string | null) => {
     setState((prev) => ({
       ...prev,
@@ -340,6 +360,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addNoteLink,
     removeNoteLink,
     importState,
+    setTheme,
     setActiveContext,
   };
 

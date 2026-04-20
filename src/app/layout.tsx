@@ -36,7 +36,10 @@ export default function RootLayout({
         <div className="bg-mesh" />
         <div 
           className="relative z-10 flex h-full overflow-hidden" 
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          style={{ 
+            paddingTop: 'env(safe-area-inset-top)',
+            paddingBottom: 'env(safe-area-inset-bottom)' 
+          }}
         >
           <StoreProvider>
             <SyncManagerProvider>{children}</SyncManagerProvider>

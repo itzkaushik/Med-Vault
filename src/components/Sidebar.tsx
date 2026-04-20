@@ -62,6 +62,8 @@ export default function Sidebar({ collapsed, onToggle, activeView, onNavigate }:
         `}
         style={{
           width: "var(--sidebar-width)",
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))"
         }}
       >
         {/* Logo */}

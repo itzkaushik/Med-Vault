@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useStore } from "../lib/store";
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -9,10 +10,18 @@ interface TopBarProps {
 }
 
 export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarProps) {
+  const { theme, setTheme } = useStore();
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
   return (
     <header
-      className="h-[var(--topbar-height)] flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b border-[var(--border-subtle)] shrink-0 gap-2"
-      style={{ background: "rgba(12, 14, 20, 0.6)", backdropFilter: "blur(12px)" }}
+      className="flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b border-[var(--border-subtle)] shrink-0 gap-2"
+      style={{ 
+        background: "rgba(12, 14, 20, 0.6)", 
+        backdropFilter: "blur(12px)",
+        height: "calc(var(--topbar-height) + env(safe-area-inset-top))",
+        paddingTop: "env(safe-area-inset-top)"
+      }}
     >
       {/* Left: Menu + Breadcrumb */}
       <div className="flex items-center gap-2 shrink-0">
@@ -60,6 +69,15 @@ export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarP
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-9 h-9 flex items-center justify-center rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-secondary)]"
+          title="Toggle Theme"
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
         {/* New Note Button */}
         <button
           onClick={onNewNote}
