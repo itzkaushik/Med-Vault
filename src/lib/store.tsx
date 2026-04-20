@@ -12,6 +12,7 @@ export interface Subject {
   order: number;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface Topic {
@@ -22,6 +23,7 @@ export interface Topic {
   order: number;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface Note {
@@ -35,6 +37,7 @@ export interface Note {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface NoteLink {
@@ -42,6 +45,8 @@ export interface NoteLink {
   sourceId: string;
   targetId: string;
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export interface StoreState {
@@ -172,11 +177,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteSubject = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
-      subjects: prev.subjects.filter((s) => s.id !== id),
-      topics: prev.topics.filter((t) => t.subjectId !== id),
-      notes: prev.notes.map((n) =>
-        n.subjectId === id ? { ...n, subjectId: null } : n
-      ),
+      subjects: prev.subjects.map(s => s.id === id ? { ...s, deletedAt: new Date().toISOString() } : s),
+      topics: prev.topics.map(t => t.subjectId === id ? { ...t, deletedAt: new Date().toISOString() } : t),
+      notes: prev.notes.map((n) => n.subjectId === id ? { ...n, subjectId: null, updatedAt: new Date().toISOString() } : n),
     }));
   }, []);
 
@@ -209,10 +212,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteTopic = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
-      topics: prev.topics.filter((t) => t.id !== id),
-      notes: prev.notes.map((n) =>
-        n.topicId === id ? { ...n, topicId: null } : n
-      ),
+      topics: prev.topics.map(t => t.id === id ? { ...t, deletedAt: new Date().toISOString() } : t),
+      notes: prev.notes.map((n) => n.topicId === id ? { ...n, topicId: null, updatedAt: new Date().toISOString() } : n),
     }));
   }, []);
 
@@ -239,8 +240,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteNote = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
-      notes: prev.notes.filter((n) => n.id !== id),
-      noteLinks: prev.noteLinks.filter((l) => l.sourceId !== id && l.targetId !== id),
+      notes: prev.notes.map(n => n.id === id ? { ...n, deletedAt: new Date().toISOString() } : n),
+      noteLinks: prev.noteLinks.map((l) => (l.sourceId === id || l.targetId === id) ? { ...l, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : l),
     }));
   }, []);
 
@@ -290,7 +291,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         noteLinks: [
           ...prev.noteLinks,
-          { id: generateId(), sourceId, targetId, createdAt: new Date().toISOString() },
+          { id: generateId(), sourceId, targetId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
         ],
       };
     });
@@ -299,8 +300,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const removeNoteLink = useCallback((sourceId: string, targetId: string) => {
     setState((prev) => ({
       ...prev,
-      noteLinks: prev.noteLinks.filter(
-        (l) => !(l.sourceId === sourceId && l.targetId === targetId)
+      noteLinks: prev.noteLinks.map(
+        (l) => (l.sourceId === sourceId && l.targetId === targetId) ? { ...l, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : l
       ),
     }));
   }, []);
@@ -348,5 +349,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 export function useStore(): Store {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error("useStore must be used within a StoreProvider");
-  return ctx;
+    
+    // Transparently filter out soft-deleted items for UI consumers
+    return {
+      ...ctx,
+      subjects: ctx.subjects.filter((s) => !s.deletedAt),
+      topics: ctx.topics.filter((t) => !t.deletedAt),
+      notes: ctx.notes.filter((n) => !n.deletedAt),
+      noteLinks: ctx.noteLinks.filter((nl) => !nl.deletedAt),
+    };
+
 }

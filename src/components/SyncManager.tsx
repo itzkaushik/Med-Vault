@@ -41,7 +41,8 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
   
   const peerRef = useRef<Peer | null>(null);
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
-  const isImportingRef = useRef(false);
+  const isPeerInit = useRef(false);
+  const lastBroadcastHash = useRef<string>("");
 
   // Initialize Code and Linked Peers from Storage
   useEffect(() => {
@@ -74,6 +75,8 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
   // Setup PeerJS and Auto-Connect
   useEffect(() => {
     if (!myCode || typeof window === "undefined") return;
+    if (isPeerInit.current) return;
+    isPeerInit.current = true;
 
     let isActive = true;
 
@@ -87,8 +90,9 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
 
       peer.on("open", () => {
         // Auto-connect to known peers
-        linkedPeers.forEach(connectToPeer);
-        if (connectionsRef.current.size === 0) {
+        if (linkedPeers.length > 0) {
+          linkedPeers.forEach(connectToPeer);
+        } else {
            setConnectionStatus("disconnected");
         }
       });
@@ -113,12 +117,6 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myCode]);
-
-  const connectToPeer = useCallback((code: string) => {
-    if (!peerRef.current) return;
-    const conn = peerRef.current.connect(getFullPeerId(code), { reliable: true });
-    handleIncomingConnection(conn);
-  }, []);
 
   const handleIncomingConnection = useCallback((conn: DataConnection) => {
     conn.on("open", () => {
@@ -145,13 +143,11 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
         const remoteState = data.payload as StoreState;
         const merged = mergeStoreState(storeRef.current, remoteState);
         
-        isImportingRef.current = true;
-        store.importState(merged);
+        const mergedStr = JSON.stringify(merged);
+        if (JSON.stringify(storeRef.current) === mergedStr) return; // No changes
         
-        // Reset flag after a short delay so local changes trigger broadcasts again
-        setTimeout(() => {
-          isImportingRef.current = false;
-        }, 500);
+        lastBroadcastHash.current = mergedStr;
+        store.importState(merged);
       }
     });
 
@@ -170,10 +166,21 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
     });
   }, [store]);
 
+  const connectToPeer = useCallback((code: string) => {
+    if (!peerRef.current) return;
+    const conn = peerRef.current.connect(getFullPeerId(code), { reliable: true });
+    handleIncomingConnection(conn);
+  }, [handleIncomingConnection]);
+
   // Broadcast state changes to all connected peers
   useEffect(() => {
     // Prevent infinite loop if the change was triggered by an incoming sync
-    if (isImportingRef.current || connectionsRef.current.size === 0 || !storeRef.current) return;
+    if (connectionsRef.current.size === 0 || !storeRef.current) return;
+    
+    const currentStr = JSON.stringify(storeRef.current);
+    if (currentStr === lastBroadcastHash.current) return;
+    
+    lastBroadcastHash.current = currentStr;
 
     connectionsRef.current.forEach((conn) => {
       if (conn.open) {

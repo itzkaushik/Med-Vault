@@ -22,11 +22,7 @@ export function mergeStoreState(local: StoreState, remote: StoreState): StoreSta
   merged.topics = mergeItems(local.topics, remote.topics);
   merged.notes = mergeItems(local.notes, remote.notes);
 
-  // NoteLinks don't have updatedAt, so union by ID
-  const linkMap = new Map<string, any>();
-  for (const l of local.noteLinks) linkMap.set(l.id, l);
-  for (const l of remote.noteLinks) linkMap.set(l.id, l);
-  merged.noteLinks = Array.from(linkMap.values());
+  merged.noteLinks = mergeItems(local.noteLinks, remote.noteLinks);
 
   return merged;
 }
