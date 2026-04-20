@@ -17,10 +17,9 @@ export default function TopBar({ onToggleSidebar, onNewNote, onSearch }: TopBarP
     <header
       className="flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b border-[var(--border-subtle)] shrink-0 gap-2"
       style={{ 
-        background: "rgba(12, 14, 20, 0.6)", 
+        background: "var(--bg-elevated)", 
         backdropFilter: "blur(12px)",
-        height: "calc(var(--topbar-height) + env(safe-area-inset-top))",
-        paddingTop: "env(safe-area-inset-top)"
+        height: "var(--topbar-height)"
       }}
     >
       {/* Left: Menu + Breadcrumb */}

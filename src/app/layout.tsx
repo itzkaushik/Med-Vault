@@ -37,7 +37,6 @@ export default function RootLayout({
         <div 
           className="relative z-10 flex h-full overflow-hidden" 
           style={{ 
-            paddingTop: 'env(safe-area-inset-top)',
             paddingBottom: 'env(safe-area-inset-bottom)' 
           }}
         >

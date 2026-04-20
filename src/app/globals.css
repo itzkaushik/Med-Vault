@@ -138,14 +138,14 @@ body {
 
 /* ── Glassmorphism Utilities ── */
 .glass {
-  background: rgba(18, 21, 30, 0.7);
+  background: var(--bg-hover);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
 }
 
 .glass-strong {
-  background: rgba(24, 28, 40, 0.85);
+  background: var(--bg-elevated);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid var(--border-default);
