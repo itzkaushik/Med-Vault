@@ -2,6 +2,7 @@
 
 import React, { useEffect, useCallback, useState, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
@@ -9,6 +10,8 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
 import Image from "@tiptap/extension-image";
+import Youtube from "@tiptap/extension-youtube";
+import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import EditorToolbar from "./EditorToolbar";
 import WikiLinkPopover from "./WikiLinkPopover";
@@ -60,6 +63,7 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
   
   // Image Annotator State
   const [annotatingImage, setAnnotatingImage] = useState<{ src: string, pos: number } | null>(null);
+  const [isAskingAI, setIsAskingAI] = useState(false);
 
   const titleRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,6 +89,8 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
       TaskItem.configure({ nested: true }),
       Underline,
       Image.configure({ inline: true, allowBase64: true }),
+      Youtube.configure({ width: 480, height: 320, inline: false }),
+      BubbleMenuExtension,
       WikiLink,
     ],
     content: note?.content || "",
@@ -203,14 +209,27 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
 
   const handleAnnotatorSave = (editedDataUrl: string) => {
     if (editor && annotatingImage) {
-      editor
-        .chain()
-        .focus()
-        .command(({ tr }) => {
-          tr.setNodeMarkup(annotatingImage.pos, undefined, { src: editedDataUrl });
-          return true;
-        })
-        .run();
+      let nodeFoundPos = -1;
+      
+      // Find the exact node position by matching the src
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image' && node.attrs.src === annotatingImage.src) {
+          nodeFoundPos = pos;
+          return false; // Stop searching
+        }
+      });
+
+      if (nodeFoundPos !== -1) {
+        editor
+          .chain()
+          .focus()
+          .setNodeSelection(nodeFoundPos)
+          .setImage({ src: editedDataUrl })
+          .run();
+      } else {
+        // Fallback if not found (shouldn't happen)
+        editor.chain().focus().setImage({ src: editedDataUrl }).run();
+      }
     }
     setAnnotatingImage(null);
   };
@@ -256,6 +275,56 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     },
     [noteId, viewingPdf]
   );
+
+  const handleEmbedVideo = useCallback(() => {
+    if (!editor) return;
+    const url = prompt("Enter YouTube video URL:");
+    if (url) {
+      editor.commands.setYoutubeVideo({ src: url });
+    }
+  }, [editor]);
+
+  const handleAskAI = useCallback(async () => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    
+    const selectedText = editor.state.doc.textBetween(from, to, " ");
+    const apiKey = localStorage.getItem("medvault_gemini_key");
+    if (!apiKey) {
+      alert("Please set up your Gemini API key in the AI Co-pilot settings first.");
+      return;
+    }
+
+    setIsAskingAI(true);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [{ text: `You are a medical study assistant. Explain the following concept or text concisely, providing high-yield medical facts if applicable. Format it beautifully in markdown.\n\nText: "${selectedText}"` }]
+            }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
+          })
+        }
+      );
+      if (!response.ok) throw new Error("API Error");
+      const data = await response.json();
+      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (aiText) {
+        editor.chain().focus().insertContentAt(to, `\n\n> **💡 AI Explanation:**\n> ${aiText.replace(/\n/g, '\n> ')}\n\n`).run();
+      }
+    } catch (e) {
+      console.error("AI Error", e);
+      alert("Failed to get AI suggestion. Try again.");
+    } finally {
+      setIsAskingAI(false);
+    }
+  }, [editor]);
 
   useEffect(() => {
     if (note) setTitle(note.title);
@@ -421,6 +490,28 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
           ) : (
             // ─── Edit Mode: TipTap Editor ─────────────────────
             <>
+              {editor && mode === "edit" && (
+                <BubbleMenu
+                  editor={editor}
+                  options={{ placement: "top" }}
+                  className="flex items-center gap-1 p-1 bg-[var(--bg-primary)] border border-[var(--border-strong)] rounded-[var(--radius-md)] shadow-glow"
+                >
+                  <button
+                    onClick={handleAskAI}
+                    disabled={isAskingAI}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-semibold text-white bg-[var(--accent-primary)] hover:brightness-110 disabled:opacity-50 transition-all"
+                  >
+                    <span>🤖</span> {isAskingAI ? "Thinking..." : "Explain with AI"}
+                  </button>
+                  <div className="w-px h-5 bg-[var(--border-subtle)] mx-1" />
+                  <button
+                    onClick={handleEmbedVideo}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
+                  >
+                    <span className="text-red-500">▶️</span> Add Video
+                  </button>
+                </BubbleMenu>
+              )}
               <EditorContent editor={editor} />
               {showLinkPopover && (
                 <WikiLinkPopover

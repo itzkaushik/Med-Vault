@@ -154,51 +154,57 @@ export default function EditorToolbar({ editor, onAddPhoto }: EditorToolbarProps
         </svg>
       ),
       action: () => editor.chain().focus().setHorizontalRule().run(),
-      divider: true,
-    },
-    {
-      label: "Add Photo",
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <rect x="1.5" y="3.5" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-          <circle cx="7" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2" />
-          <line x1="10.5" y1="5" x2="10.5" y2="5.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      ),
-      action: () => onAddPhoto && onAddPhoto(),
     },
   ];
 
   return (
     <div
-      className="flex items-center gap-0.5 px-2 py-1.5 border-b border-[var(--border-subtle)] overflow-x-auto"
+      className="flex items-center justify-between px-2 py-1.5 border-b border-[var(--border-subtle)]"
       style={{ background: "var(--bg-tertiary)" }}
     >
-      {buttons.map((btn, i) => (
-        <React.Fragment key={btn.label}>
-          <button
-            type="button"
-            onClick={btn.action}
-            title={btn.label}
-            className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-sm)] transition-all duration-100 shrink-0"
-            style={{
-              background: btn.isActive ? "var(--accent-glow)" : "transparent",
-              color: btn.isActive ? "var(--accent-secondary)" : "var(--text-tertiary)",
-            }}
-            onMouseEnter={(e) => {
-              if (!btn.isActive) (e.target as HTMLElement).style.background = "var(--bg-hover)";
-            }}
-            onMouseLeave={(e) => {
-              if (!btn.isActive) (e.target as HTMLElement).style.background = "transparent";
-            }}
-          >
-            {btn.icon}
-          </button>
-          {btn.divider && (
-            <div key={`div-${i}`} className="w-px h-4 bg-[var(--border-subtle)] mx-1 shrink-0" />
-          )}
-        </React.Fragment>
-      ))}
+      <div className="flex items-center gap-0.5 overflow-x-auto pr-4 scrollbar-hide flex-1">
+        {buttons.map((btn, i) => (
+          <React.Fragment key={btn.label}>
+            <button
+              type="button"
+              onClick={btn.action}
+              title={btn.label}
+              className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-[var(--radius-sm)] transition-all duration-100 shrink-0"
+              style={{
+                background: btn.isActive ? "var(--accent-glow)" : "transparent",
+                color: btn.isActive ? "var(--accent-secondary)" : "var(--text-tertiary)",
+              }}
+              onMouseEnter={(e) => {
+                if (!btn.isActive) (e.target as HTMLElement).style.background = "var(--bg-hover)";
+              }}
+              onMouseLeave={(e) => {
+                if (!btn.isActive) (e.target as HTMLElement).style.background = "transparent";
+              }}
+            >
+              {btn.icon}
+            </button>
+            {btn.divider && (
+              <div key={`div-${i}`} className="w-px h-5 bg-[var(--border-subtle)] mx-1 shrink-0" />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      
+      {onAddPhoto && (
+        <button
+          type="button"
+          onClick={onAddPhoto}
+          className="shrink-0 flex items-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 bg-[var(--accent-primary)] text-white font-medium rounded-full sm:rounded-[var(--radius-md)] shadow-glow hover:brightness-110 active:scale-95 transition-all ml-2"
+          title="Take or Add Photo"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="8" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+            <line x1="12" y1="6" x2="12" y2="6.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <span className="hidden sm:inline text-xs font-bold">Add Photo</span>
+        </button>
+      )}
     </div>
   );
 }
