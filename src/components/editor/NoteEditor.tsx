@@ -8,9 +8,12 @@ import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
+import Image from "@tiptap/extension-image";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import EditorToolbar from "./EditorToolbar";
 import WikiLinkPopover from "./WikiLinkPopover";
 import WikiLink from "./WikiLinkExtension";
+import ImageAnnotator from "./ImageAnnotator";
 import { useStore, type Note } from "@/lib/store";
 
 interface NoteEditorProps {
@@ -47,12 +50,17 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
   const { getNoteById, updateNote, notes, subjects, topics, getBacklinks, addNoteLink } = useStore();
   const note = getNoteById(noteId);
   const [mode, setMode] = useState<"read" | "edit">(note?.content ? "read" : "edit");
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [title, setTitle] = useState(note?.title || "");
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [linkQuery, setLinkQuery] = useState("");
   const [linkPosition, setLinkPosition] = useState({ top: 0, left: 0 });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [viewingPdf, setViewingPdf] = useState<Attachment | null>(null);
+  
+  // Image Annotator State
+  const [annotatingImage, setAnnotatingImage] = useState<{ src: string, pos: number } | null>(null);
+
   const titleRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +84,7 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Underline,
+      Image.configure({ inline: true, allowBase64: true }),
       WikiLink,
     ],
     content: note?.content || "",
@@ -98,6 +107,16 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         }
         if (event.key === "]" && showLinkPopover) {
           setShowLinkPopover(false);
+        }
+        return false;
+      },
+      handleClick: (view, pos, event) => {
+        const target = event.target as HTMLElement;
+        if (target && target.nodeName === 'IMG') {
+          const src = target.getAttribute('src');
+          if (src) {
+            setAnnotatingImage({ src, pos });
+          }
         }
         return false;
       },
@@ -164,6 +183,37 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     },
     [noteId, updateNote]
   );
+
+  // Camera / Photo Add Handler
+  const handleAddPhoto = useCallback(async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Prompt,
+      });
+      if (image.dataUrl && editor) {
+        editor.chain().focus().setImage({ src: image.dataUrl }).run();
+      }
+    } catch (e) {
+      console.warn("Camera cancelled or failed", e);
+    }
+  }, [editor]);
+
+  const handleAnnotatorSave = (editedDataUrl: string) => {
+    if (editor && annotatingImage) {
+      editor
+        .chain()
+        .focus()
+        .command(({ tr }) => {
+          tr.setNodeMarkup(annotatingImage.pos, undefined, { src: editedDataUrl });
+          return true;
+        })
+        .run();
+    }
+    setAnnotatingImage(null);
+  };
 
   // PDF Attachment handler
   const handleAttachPdf = useCallback(() => {
@@ -232,12 +282,13 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fadeIn">
+    <div className={`mx-auto animate-fadeIn transition-all duration-300 ${isFocusMode ? "fixed inset-0 z-[100] bg-[var(--bg-primary)] overflow-y-auto p-4 sm:p-8 lg:p-12" : "max-w-4xl"}`}>
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm mb-4 flex-wrap">
+      {/* Breadcrumb - hide in focus mode */}
+      {!isFocusMode && (
+        <div className="flex items-center gap-2 text-xs sm:text-sm mb-4 flex-wrap">
         <button onClick={() => onNavigate("home")} className="text-[var(--text-tertiary)] hover:text-[var(--accent-secondary)] transition-colors">
           Home
         </button>
@@ -260,11 +311,12 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         <span className="text-[var(--text-muted)]">/</span>
         <span className="text-[var(--text-primary)] font-medium truncate max-w-[150px] sm:max-w-[200px]">{note.title}</span>
       </div>
+      )}
 
       {/* Note Container */}
       <div
-        className="rounded-[var(--radius-xl)] overflow-hidden border border-[var(--border-subtle)]"
-        style={{ background: "var(--bg-secondary)" }}
+        className={`overflow-hidden transition-all duration-300 ${isFocusMode ? "max-w-4xl mx-auto border-none bg-transparent" : "rounded-[var(--radius-xl)] border border-[var(--border-subtle)]"}`}
+        style={{ background: isFocusMode ? "transparent" : "var(--bg-secondary)" }}
       >
         {/* Header: Title + Mode Toggle */}
         <div className="px-4 sm:px-6 pt-5 pb-3">
@@ -284,35 +336,54 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
               </h1>
             )}
 
-            {/* Mode toggle buttons */}
-            <div className="flex items-center gap-1 shrink-0 bg-[var(--bg-tertiary)] rounded-[var(--radius-md)] p-0.5">
-              <button
-                onClick={() => setMode("read")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all"
-                style={{
-                  background: mode === "read" ? "var(--accent-glow)" : "transparent",
-                  color: mode === "read" ? "var(--accent-secondary)" : "var(--text-tertiary)",
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M1 6C1 6 3 2 6 2C9 2 11 6 11 6C11 6 9 10 6 10C3 10 1 6 1 6Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  <circle cx="6" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.2" />
-                </svg>
-                <span className="hidden sm:inline">Read</span>
-              </button>
-              <button
-                onClick={() => { setMode("edit"); setTimeout(() => editor?.commands.focus(), 100); }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-all"
-                style={{
-                  background: mode === "edit" ? "var(--accent-glow)" : "transparent",
-                  color: mode === "edit" ? "var(--accent-secondary)" : "var(--text-tertiary)",
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="hidden sm:inline">Edit</span>
-              </button>
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              {mode === "read" && (
+                <button
+                  onClick={() => setIsFocusMode(!isFocusMode)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  title="Toggle Focus Mode"
+                >
+                  {isFocusMode ? (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M5 2V5H2M9 2V5H12M5 12V9H2M9 12V9H12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="hidden sm:inline">Exit Focus</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 5V2H5M12 5V2H9M2 9V12H5M12 9V12H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="hidden sm:inline">Focus Mode</span>
+                    </>
+                  )}
+                </button>
+              )}
+              
+              {mode === "read" ? (
+                <button
+                  onClick={() => { setMode("edit"); setTimeout(() => editor?.commands.focus(), 100); }}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-[var(--radius-md)] text-xs font-medium transition-all text-white hover:brightness-110"
+                  style={{ background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", boxShadow: "var(--shadow-glow)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>Edit Note</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setMode("read")}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-[var(--radius-md)] text-xs font-medium transition-all text-white bg-[var(--accent-success)] hover:brightness-110"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>Done Editing</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -337,7 +408,7 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         </div>
 
         {/* Toolbar — only in edit mode */}
-        {mode === "edit" && <EditorToolbar editor={editor} />}
+        {mode === "edit" && <EditorToolbar editor={editor} onAddPhoto={handleAddPhoto} />}
 
         {/* Content */}
         <div className="relative">
@@ -448,8 +519,8 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         </div>
       )}
 
-      {/* Backlinks */}
-      {backlinks.length > 0 && (
+      {/* Backlinks - hide in focus mode */}
+      {!isFocusMode && backlinks.length > 0 && (
         <div className="mt-4 p-4 sm:p-5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)]" style={{ background: "var(--bg-secondary)" }}>
           <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -475,6 +546,16 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Image Annotator Modal */}
+      {annotatingImage && (
+        <ImageAnnotator
+          isOpen={true}
+          imageUrl={annotatingImage.src}
+          onSave={handleAnnotatorSave}
+          onClose={() => setAnnotatingImage(null)}
+        />
       )}
     </div>
   );

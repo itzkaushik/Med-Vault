@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react";
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  onAddPhoto?: () => void;
 }
 
 interface ToolbarButton {
@@ -15,7 +16,7 @@ interface ToolbarButton {
   divider?: boolean;
 }
 
-export default function EditorToolbar({ editor }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, onAddPhoto }: EditorToolbarProps) {
   if (!editor) return null;
 
   const buttons: ToolbarButton[] = [
@@ -153,6 +154,18 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
         </svg>
       ),
       action: () => editor.chain().focus().setHorizontalRule().run(),
+      divider: true,
+    },
+    {
+      label: "Add Photo",
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1.5" y="3.5" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          <circle cx="7" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="10.5" y1="5" x2="10.5" y2="5.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      ),
+      action: () => onAddPhoto && onAddPhoto(),
     },
   ];
 
