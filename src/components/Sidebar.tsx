@@ -58,10 +58,10 @@ export default function Sidebar({ collapsed, onToggle, activeView, onNavigate }:
         className={`
           h-full flex flex-col glass-strong transition-all duration-300 ease-in-out shrink-0 z-50
           fixed lg:relative
-          ${collapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"}
+          ${collapsed ? "-translate-x-full lg:translate-x-0 opacity-0 pointer-events-none" : "translate-x-0 opacity-100 pointer-events-auto"}
         `}
         style={{
-          width: "var(--sidebar-width)",
+          width: collapsed ? "0px" : "var(--sidebar-width)",
           paddingTop: "var(--app-safe-top)",
           paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))"
         }}

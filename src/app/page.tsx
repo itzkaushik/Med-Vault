@@ -37,6 +37,13 @@ export default function HomePage() {
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
+  // Default to expanded sidebar on desktop screens.
+  useEffect(() => {
+    if (window.innerWidth >= 1024) {
+      setSidebarCollapsed(false);
+    }
+  }, []);
+
   // Handle "New Note" from TopBar — creates an unattached note
   const handleNewNote = useCallback(() => {
     const note = addNote({
