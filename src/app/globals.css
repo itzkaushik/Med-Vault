@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Tiptap Youtube Responsive Classes */
+.prose-editor div[data-youtube-video] {
+  display: flex !important;
+  justify-content: center;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+.prose-editor div[data-youtube-video] iframe {
+  max-width: 100%;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
 :root {
   /* ── Background Layers ── */
   --bg-primary: #0c0e14;

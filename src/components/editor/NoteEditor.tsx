@@ -11,6 +11,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
 import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
+import Link from "@tiptap/extension-link";
 import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import EditorToolbar from "./EditorToolbar";
@@ -95,7 +96,19 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
       TaskItem.configure({ nested: true }),
       Underline,
       Image.configure({ inline: true, allowBase64: true }),
-      Youtube.configure({ width: 480, height: 320, inline: false }),
+      Youtube.configure({ 
+        controls: true, 
+        nocookie: true, 
+        allowFullscreen: true, 
+        HTMLAttributes: { 
+          class: "w-full rounded-lg" 
+        }
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+      }),
       BubbleMenuExtension,
       WikiLink,
     ],

@@ -324,7 +324,13 @@ export default function AIChatView() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[var(--border-subtle)] p-2 sm:p-3 shrink-0" style={{ background: "var(--bg-secondary)" }}>
+      <div 
+        className="border-t border-[var(--border-subtle)] p-2 sm:p-3 shrink-0" 
+        style={{ 
+          background: "var(--bg-secondary)",
+          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))"
+        }}
+      >
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
           {/* Settings + Clear */}
           <div className="flex flex-col gap-1 shrink-0">

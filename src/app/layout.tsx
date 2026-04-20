@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
 import { SyncManagerProvider } from "@/components/SyncManager";
@@ -9,6 +9,14 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "MedVault — MBBS Study Knowledge Base",
@@ -24,9 +32,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="min-h-full font-sans antialiased">
+      <body className="h-full min-h-0 font-sans antialiased overflow-hidden">
         <div className="bg-mesh" />
-        <div className="relative z-10 flex h-screen overflow-hidden">
+        <div 
+          className="relative z-10 flex h-full overflow-hidden" 
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           <StoreProvider>
             <SyncManagerProvider>{children}</SyncManagerProvider>
           </StoreProvider>
