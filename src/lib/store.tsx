@@ -44,7 +44,7 @@ export interface NoteLink {
   createdAt: string;
 }
 
-interface StoreState {
+export interface StoreState {
   subjects: Subject[];
   topics: Topic[];
   notes: Note[];
@@ -72,6 +72,7 @@ interface StoreActions {
   getBacklinks: (noteId: string) => Note[];
   addNoteLink: (sourceId: string, targetId: string) => void;
   removeNoteLink: (sourceId: string, targetId: string) => void;
+  importState: (newState: Partial<StoreState>) => void;
 }
 
 type Store = StoreState & StoreActions;
@@ -299,6 +300,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const importState = useCallback((newState: Partial<StoreState>) => {
+    setState((prev) => ({
+      ...prev,
+      ...newState,
+    }));
+  }, []);
+
   const store: Store = {
     ...state,
     addSubject,
@@ -317,6 +325,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     getBacklinks,
     addNoteLink,
     removeNoteLink,
+    importState,
   };
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

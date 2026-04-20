@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
+import { SyncManagerProvider } from "@/components/SyncManager";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,7 +27,9 @@ export default function RootLayout({
       <body className="min-h-full font-sans antialiased">
         <div className="bg-mesh" />
         <div className="relative z-10 flex h-screen overflow-hidden">
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            <SyncManagerProvider>{children}</SyncManagerProvider>
+          </StoreProvider>
         </div>
       </body>
     </html>

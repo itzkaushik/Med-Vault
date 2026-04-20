@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
+import SyncModal from "./SyncModal";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar({ collapsed, onToggle, activeView, onNavigate }: SidebarProps) {
   const { subjects } = useStore();
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // Close sidebar on mobile when navigating
   const handleNavigate = (view: string) => {
@@ -148,8 +150,17 @@ export default function Sidebar({ collapsed, onToggle, activeView, onNavigate }:
           </div>
         </nav>
 
-        {/* Close button (visible on mobile) */}
-        <div className="border-t border-[var(--border-subtle)] p-3">
+        {/* Sync & Close buttons (bottom) */}
+        <div className="border-t border-[var(--border-subtle)] p-3 space-y-1">
+          <button
+            onClick={() => setIsSyncModalOpen(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-all duration-150 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            <span className="text-lg shrink-0">🔄</span>
+            <span className="text-sm font-medium animate-fadeIn">Device Sync</span>
+          </button>
+          
+          {/* Close button (visible on mobile) */}
           <button
             onClick={onToggle}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-all duration-150 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
@@ -167,6 +178,9 @@ export default function Sidebar({ collapsed, onToggle, activeView, onNavigate }:
           </button>
         </div>
       </aside>
+
+      {/* Sync Modal */}
+      <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
     </>
   );
 }
