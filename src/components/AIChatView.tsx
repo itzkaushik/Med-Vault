@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useStore } from "@/lib/store";
 
 const API_KEY_STORAGE = "medvault_gemini_key";
 const CHAT_HISTORY_STORAGE = "medvault_chat_history";
@@ -41,6 +42,7 @@ Rules:
 - If unsure, say so — never fabricate medical information.`;
 
 export default function AIChatView() {
+  const { activeSubjectId, activeTopicId, subjects, topics } = useStore();
   const [apiKey, setApiKey] = useState(loadApiKey);
   const [showSettings, setShowSettings] = useState(!loadApiKey());
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
@@ -86,9 +88,20 @@ export default function AIChatView() {
     setError(null);
 
     try {
+      let contextAddition = "";
+      if (activeSubjectId) {
+        const matchingSubject = subjects.find(s => s.id === activeSubjectId);
+        const matchingTopic = activeTopicId ? topics.find(t => t.id === activeTopicId) : null;
+        if (matchingSubject && matchingTopic) {
+          contextAddition = `\nContext: The user is currently studying the subject "${matchingSubject.name}", answering a query related to the topic "${matchingTopic.name}". Tailor your explanation to this context.`;
+        } else if (matchingSubject) {
+          contextAddition = `\nContext: The user is currently studying the subject "${matchingSubject.name}". Tailor your explanation to this context.`;
+        }
+      }
+
       // Build conversation history for Gemini API
       const contents = [
-        { role: "user", parts: [{ text: MEDICAL_SYSTEM_PROMPT }] },
+        { role: "user", parts: [{ text: MEDICAL_SYSTEM_PROMPT + contextAddition }] },
         { role: "model", parts: [{ text: "Understood! I'm MedVault AI, ready to help you study medicine. Ask me anything!" }] },
         ...updatedMessages.map((m) => ({
           role: m.role === "user" ? "user" : "model",
@@ -131,7 +144,7 @@ export default function AIChatView() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, apiKey, messages]);
+  }, [inputText, isLoading, apiKey, messages, activeSubjectId, activeTopicId, subjects, topics]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

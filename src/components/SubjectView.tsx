@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useStore, type Subject, type Topic } from "@/lib/store";
 import TopicModal from "@/components/TopicModal";
 
@@ -10,9 +10,13 @@ interface SubjectViewProps {
 }
 
 export default function SubjectView({ subjectId, onNavigate }: SubjectViewProps) {
-  const { subjects, getTopicsForSubject, getNotesForSubject, getNotesForTopic, deleteSubject, deleteTopic } = useStore();
+  const { subjects, getTopicsForSubject, getNotesForSubject, getNotesForTopic, deleteSubject, deleteTopic, setActiveContext } = useStore();
   const [topicModal, setTopicModal] = useState<{ open: boolean; edit: Topic | null }>({ open: false, edit: null });
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveContext(subjectId, null);
+  }, [subjectId, setActiveContext]);
 
   const subject = subjects.find((s) => s.id === subjectId);
   if (!subject) return null;

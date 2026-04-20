@@ -2,7 +2,7 @@ import { StoreState } from "./store";
 
 // Merge strategy: last write wins based on updatedAt
 export function mergeStoreState(local: StoreState, remote: StoreState): StoreState {
-  const merged: StoreState = { subjects: [], topics: [], notes: [], noteLinks: [] };
+  const merged: StoreState = { subjects: [], topics: [], notes: [], noteLinks: [], activeSubjectId: local.activeSubjectId, activeTopicId: local.activeTopicId };
 
   const mergeItems = <T extends { id: string; updatedAt?: string }>(localItems: T[], remoteItems: T[]): T[] => {
     const map = new Map<string, T>();

@@ -50,8 +50,14 @@ function saveAttachments(data: Record<string, Attachment[]>) {
 }
 
 export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
-  const { getNoteById, updateNote, notes, subjects, topics, getBacklinks, addNoteLink } = useStore();
+  const { getNoteById, updateNote, notes, subjects, topics, getBacklinks, addNoteLink, setActiveContext } = useStore();
   const note = getNoteById(noteId);
+
+  useEffect(() => {
+    if (note) {
+      setActiveContext(note.subjectId, note.topicId);
+    }
+  }, [note?.subjectId, note?.topicId, setActiveContext]);
   const [mode, setMode] = useState<"read" | "edit">(note?.content ? "read" : "edit");
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [title, setTitle] = useState(note?.title || "");
@@ -296,6 +302,18 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
       return;
     }
 
+    const currentNote = getNoteById(noteId);
+    let contextStr = "";
+    if (currentNote) {
+      const subject = subjects.find((s) => s.id === currentNote.subjectId);
+      const topic = topics.find((t) => t.id === currentNote.topicId);
+      if (subject && topic) {
+        contextStr = `\nContext: The user is currently studying the subject "${subject.name}", specifically the topic "${topic.name}".`;
+      } else if (subject) {
+        contextStr = `\nContext: The user is currently studying the subject "${subject.name}".`;
+      }
+    }
+
     setIsAskingAI(true);
     try {
       const response = await fetch(
@@ -306,7 +324,7 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
           body: JSON.stringify({
             contents: [{
               role: "user",
-              parts: [{ text: `You are a medical study assistant. Explain the following concept or text concisely, providing high-yield medical facts if applicable. Format it beautifully in markdown.\n\nText: "${selectedText}"` }]
+              parts: [{ text: `You are a medical study assistant. Explain the following concept or text concisely, providing high-yield medical facts if applicable. Format it beautifully in markdown.${contextStr}\n\nText: "${selectedText}"` }]
             }],
             generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
           })
@@ -324,7 +342,7 @@ export default function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     } finally {
       setIsAskingAI(false);
     }
-  }, [editor]);
+  }, [editor, noteId, getNoteById, subjects, topics]);
 
   useEffect(() => {
     if (note) setTitle(note.title);

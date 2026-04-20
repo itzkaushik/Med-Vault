@@ -49,6 +49,8 @@ export interface StoreState {
   topics: Topic[];
   notes: Note[];
   noteLinks: NoteLink[];
+  activeSubjectId: string | null;
+  activeTopicId: string | null;
 }
 
 interface StoreActions {
@@ -73,6 +75,7 @@ interface StoreActions {
   addNoteLink: (sourceId: string, targetId: string) => void;
   removeNoteLink: (sourceId: string, targetId: string) => void;
   importState: (newState: Partial<StoreState>) => void;
+  setActiveContext: (subjectId: string | null, topicId: string | null) => void;
 }
 
 type Store = StoreState & StoreActions;
@@ -98,7 +101,7 @@ const DEFAULT_SUBJECTS: Subject[] = [
   { id: "s8", name: "Community Medicine", description: "Preventive & social medicine", icon: "🏥", color: "#0984e3", order: 7, createdAt: INITIAL_TIMESTAMP, updatedAt: INITIAL_TIMESTAMP },
 ];
 
-const DEFAULT_STATE: StoreState = { subjects: DEFAULT_SUBJECTS, topics: [], notes: [], noteLinks: [] };
+const DEFAULT_STATE: StoreState = { subjects: DEFAULT_SUBJECTS, topics: [], notes: [], noteLinks: [], activeSubjectId: null, activeTopicId: null };
 
 function loadFromStorage(): StoreState | null {
   if (typeof window === "undefined") return null;
@@ -111,6 +114,8 @@ function loadFromStorage(): StoreState | null {
         topics: parsed.topics || [],
         notes: parsed.notes || [],
         noteLinks: parsed.noteLinks || [],
+        activeSubjectId: parsed.activeSubjectId || null,
+        activeTopicId: parsed.activeTopicId || null,
       };
     }
   } catch {
@@ -307,6 +312,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const setActiveContext = useCallback((subjectId: string | null, topicId: string | null) => {
+    setState((prev) => ({
+      ...prev,
+      activeSubjectId: subjectId,
+      activeTopicId: topicId,
+    }));
+  }, []);
+
   const store: Store = {
     ...state,
     addSubject,
@@ -326,6 +339,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addNoteLink,
     removeNoteLink,
     importState,
+    setActiveContext,
   };
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

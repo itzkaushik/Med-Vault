@@ -30,8 +30,10 @@ export function SyncManagerProvider({ children }: { children: React.ReactNode })
       topics: store.topics,
       notes: store.notes,
       noteLinks: store.noteLinks,
+      activeSubjectId: store.activeSubjectId,
+      activeTopicId: store.activeTopicId,
     };
-  }, [store.subjects, store.topics, store.notes, store.noteLinks]);
+  }, [store.subjects, store.topics, store.notes, store.noteLinks, store.activeSubjectId, store.activeTopicId]);
 
   const [myCode, setMyCode] = useState<string | null>(null);
   const [linkedPeers, setLinkedPeers] = useState<string[]>([]);

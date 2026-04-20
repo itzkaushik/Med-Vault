@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useStore } from "@/lib/store";
 
 interface TopicViewProps {
@@ -9,12 +9,16 @@ interface TopicViewProps {
 }
 
 export default function TopicView({ topicId, onNavigate }: TopicViewProps) {
-  const { subjects, topics, getNotesForTopic, addNote } = useStore();
+  const { subjects, topics, getNotesForTopic, addNote, setActiveContext } = useStore();
 
   const topic = topics.find((t) => t.id === topicId);
-  if (!topic) return null;
+  const subject = topic ? subjects.find((s) => s.id === topic.subjectId) : null;
 
-  const subject = subjects.find((s) => s.id === topic.subjectId);
+  useEffect(() => {
+    setActiveContext(topic?.subjectId || null, topicId);
+  }, [topicId, topic?.subjectId, setActiveContext]);
+
+  if (!topic) return null;
   const notes = getNotesForTopic(topicId);
 
   const handleCreateNote = () => {

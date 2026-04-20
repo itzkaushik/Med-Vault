@@ -1,0 +1,13 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "npm install": true,
+        "/^powershell -Command \"Get-Content src/components/TextbookView\\.tsx \\| Select-Object -Skip 320 -First 40\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node -e \"const fs = require\\('fs'\\); const content = fs\\.readFileSync\\('src/components/TextbookView\\.tsx', 'utf8'\\); fs\\.writeFileSync\\('src/components/TextbookView\\.tsx\\.backup', content\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

@@ -1,9 +1,8 @@
-"use client";
-
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { ReactSketchCanvas, ReactSketchCanvasRef, CanvasPath } from "react-sketch-canvas";
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -18,6 +17,7 @@ interface PDFFile {
 }
 
 const TEXTBOOKS_KEY = "medvault_textbooks";
+const ANNOTATIONS_KEY = "medvault_pdf_annotations";
 
 function loadTextbooks(): PDFFile[] {
   if (typeof window === "undefined") return [];
@@ -33,6 +33,20 @@ function saveTextbooks(books: PDFFile[]) {
   localStorage.setItem(TEXTBOOKS_KEY, JSON.stringify(books));
 }
 
+function loadAllAnnotations(): Record<string, CanvasPath[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(ANNOTATIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAllAnnotations(annotations: Record<string, CanvasPath[]>) {
+  localStorage.setItem(ANNOTATIONS_KEY, JSON.stringify(annotations));
+}
+
 export default function TextbookView() {
   const [textbooks, setTextbooks] = useState<PDFFile[]>(loadTextbooks);
   const [activeBook, setActiveBook] = useState<PDFFile | null>(null);
@@ -42,6 +56,52 @@ export default function TextbookView() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Annotations State
+  const [isAnnotating, setIsAnnotating] = useState(false);
+  const [strokeColor, setStrokeColor] = useState("red");
+  const [strokeWidth, setStrokeWidth] = useState(4);
+  const [eraserMode, setEraserMode] = useState(false);
+  const canvasRef = useRef<ReactSketchCanvasRef>(null);
+  const isPageLoading = useRef(false);
+
+  // Load current page annotations from local storage
+  const renderCurrentPageAnnotations = useCallback(async () => {
+    if (!canvasRef.current || !activeBook) return;
+    try {
+      isPageLoading.current = true;
+      canvasRef.current.clearCanvas();
+      const allAnnotations = loadAllAnnotations();
+      const pagePaths = allAnnotations[`${activeBook.id}_${currentPage}`];
+      if (pagePaths && pagePaths.length > 0) {
+        await canvasRef.current.loadPaths(pagePaths);
+      }
+    } catch (e) {
+      console.error("Error loading annotations", e);
+    } finally {
+      // Slight delay to handle async ReactSketchCanvas rendering/flushing if needed
+      setTimeout(() => {
+        isPageLoading.current = false;
+      }, 50);
+    }
+  }, [activeBook, currentPage]);
+
+  useEffect(() => {
+    if (activeBook && canvasRef.current) {
+      renderCurrentPageAnnotations();
+    }
+  }, [activeBook, currentPage, renderCurrentPageAnnotations]);
+
+  const handleAnnotationChange = () => {
+    if (isPageLoading.current || !canvasRef.current || !activeBook) return;
+    canvasRef.current.exportPaths()
+      .then((paths) => {
+        const all = loadAllAnnotations();
+        all[`${activeBook.id}_${currentPage}`] = paths;
+        saveAllAnnotations(all);
+      })
+      .catch((e) => console.error("Export paths error", e));
+  };
 
   const handleFileUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,12 +122,9 @@ export default function TextbookView() {
 
         const updated = [...textbooks, newBook];
         setTextbooks(updated);
-        // Save metadata only (not data) — data is too large for some localStorage limits
-        // For now, we'll store data too and rely on the user having enough space
         try {
           saveTextbooks(updated);
         } catch {
-          // If localStorage is full, just keep in memory
           console.warn("PDF too large for localStorage persistence");
         }
         setActiveBook(newBook);
@@ -75,7 +132,6 @@ export default function TextbookView() {
         setIsLoading(false);
       };
       reader.readAsDataURL(file);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
     [textbooks]
@@ -112,20 +168,23 @@ export default function TextbookView() {
   const goToPage = useCallback(
     (page: number) => {
       const p = Math.max(1, Math.min(page, numPages));
-      setCurrentPage(p);
-      // Save reading position
-      if (activeBook) {
-        const updated = textbooks.map((b) =>
-          b.id === activeBook.id ? { ...b, lastPage: p } : b
-        );
-        setTextbooks(updated);
-        try { saveTextbooks(updated); } catch { /* */ }
+      if (p !== currentPage) {
+          // Delay page turn slightly to ensure state isn't overlapping
+          setTimeout(() => {
+              setCurrentPage(p);
+              if (activeBook) {
+                const updated = textbooks.map((b) =>
+                  b.id === activeBook.id ? { ...b, lastPage: p } : b
+                );
+                setTextbooks(updated);
+                try { saveTextbooks(updated); } catch { /* */ }
+              }
+          }, 0);
       }
     },
-    [numPages, activeBook, textbooks]
+    [currentPage, numPages, activeBook, textbooks]
   );
 
-  // ─── Library View ──────────────────────────────────
   if (!activeBook) {
     return (
       <div className="max-w-6xl mx-auto animate-fadeIn">
@@ -178,7 +237,7 @@ export default function TextbookView() {
               No textbooks yet
             </p>
             <p className="text-sm text-[var(--text-tertiary)] mb-5 text-center max-w-md">
-              Upload your medical PDFs (Guyton, Robbins, Gray&apos;s Anatomy, etc.)
+              Upload your medical PDFs (Guyton, Robbins, Gray's Anatomy, etc.)
               and read them right here alongside your notes.
             </p>
             <button
@@ -262,7 +321,21 @@ export default function TextbookView() {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          {/* Annotate Toggle */}
+          <button
+            onClick={() => setIsAnnotating(!isAnnotating)}
+            className={`px-3 py-1 flex items-center gap-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${isAnnotating ? "bg-[var(--accent-primary)] text-white shadow-glow" : "bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            {isAnnotating ? "Done" : "Annotate"}
+          </button>
+
+          <div className="w-px h-6 bg-[var(--border-subtle)] mx-1" />
+
           {/* Zoom */}
           <div className="flex items-center gap-1 px-2 py-1 rounded-[var(--radius-md)] bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
             <button
@@ -317,10 +390,54 @@ export default function TextbookView() {
         </div>
       </div>
 
+      {/* Annotation Toolbar Area */}
+      {isAnnotating && (
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-4 p-2 sm:p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] animate-fadeIn shadow-sm overflow-x-auto min-w-0">
+           <div className="flex items-center gap-2 sm:gap-3">
+              {["red", "blue", "green", "#eab308", "rgba(255, 255, 0, 0.4)", "rgba(0,0,0,0.8)"].map((color) => (
+                <button
+                  key={color}
+                  onClick={() => { setStrokeColor(color); setEraserMode(false); canvasRef.current?.eraseMode(false); }}
+                  className={`w-7 h-7 sm:w-6 sm:h-6 rounded-full border-2 ${strokeColor === color && !eraserMode ? "border-[var(--accent-primary)] scale-110" : "border-[var(--border-subtle)]"}`}
+                  style={{ backgroundColor: color }}
+                  title={color.startsWith("rgba") ? "Highlighter" : color}
+                />
+              ))}
+            </div>
+            <div className="w-px h-6 bg-[var(--border-subtle)]" />
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={strokeWidth}
+              onChange={(e) => setStrokeWidth(Number(e.target.value))}
+              className="w-24"
+              title="Stroke Width"
+            />
+            <div className="w-px h-6 bg-[var(--border-subtle)]" />
+            <button
+              onClick={() => {
+                  const newMode = !eraserMode;
+                  setEraserMode(newMode);
+                  canvasRef.current?.eraseMode(newMode);
+              }}
+              className={`px-3 py-1 text-xs font-medium rounded ${eraserMode ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--bg-hover)] text-[var(--text-primary)]"}`}
+            >
+              Eraser
+            </button>
+            <button onClick={() => canvasRef.current?.undo()} className="px-3 py-1 text-xs font-medium bg-[var(--bg-hover)] text-[var(--text-primary)] rounded hover:brightness-110">
+              Undo
+            </button>
+            <button onClick={() => canvasRef.current?.clearCanvas()} className="px-3 py-1 text-xs font-medium bg-red-500/10 text-red-500 rounded hover:brightness-110">
+              Clear All
+            </button>
+        </div>
+      )}
+
       {/* PDF Viewer */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] flex justify-center py-6"
+        className="flex-1 overflow-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] flex justify-center p-6"
         style={{ background: "var(--bg-tertiary)" }}
       >
         <Document
@@ -339,16 +456,27 @@ export default function TextbookView() {
             </div>
           }
         >
-          <Page
-            pageNumber={currentPage}
-            scale={scale}
-            className="shadow-2xl rounded-sm"
-            loading={
-              <div className="w-[595px] h-[842px] flex items-center justify-center bg-white/5 rounded-sm">
-                <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-              </div>
-            }
-          />
+          <div className="relative inline-block shadow-2xl rounded-sm">
+            <Page
+              pageNumber={currentPage}
+              scale={scale}
+              loading={<div className="w-[595px] h-[842px] bg-white/5" />}
+            />
+            <div
+              className="absolute inset-0 z-10"
+              style={{ pointerEvents: isAnnotating ? "auto" : "none" }}
+            >
+                <ReactSketchCanvas
+                  ref={canvasRef}
+                  style={{ background: "transparent" }}
+                  strokeColor={strokeColor}
+                  strokeWidth={strokeWidth}
+                  eraserWidth={strokeWidth * 2}
+                  onChange={handleAnnotationChange}
+                  canvasColor="transparent"
+                />
+            </div>
+          </div>
         </Document>
       </div>
     </div>
