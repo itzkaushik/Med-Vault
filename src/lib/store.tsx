@@ -164,6 +164,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.theme]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const capacitor = (window as Window & {
+      Capacitor?: {
+        isNativePlatform?: () => boolean;
+        getPlatform?: () => string;
+      };
+    }).Capacitor;
+
+    const isNativeAndroid = Boolean(capacitor?.isNativePlatform?.()) && capacitor?.getPlatform?.() === "android";
+    if (isNativeAndroid) {
+      document.documentElement.classList.add("native-android");
+    } else {
+      document.documentElement.classList.remove("native-android");
+    }
+  }, []);
+
   // ─── Subject CRUD ──────────────────────────────────────────
   const addSubject = useCallback(
     (data: Omit<Subject, "id" | "createdAt" | "updatedAt" | "order">) => {
