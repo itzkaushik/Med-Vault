@@ -3,8 +3,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 
-const API_KEY_STORAGE = "medvault_gemini_key";
+const API_KEY_STORAGE = "medvault_llm_api_key";
+const LEGACY_GEMINI_API_KEY_STORAGE = "medvault_gemini_key";
+const API_PROVIDER_STORAGE = "medvault_llm_provider";
+const MODEL_STORAGE = "medvault_llm_model";
+const MAX_OUTPUT_TOKENS_STORAGE = "medvault_llm_max_output_tokens";
+const CONTEXT_TURNS_STORAGE = "medvault_llm_context_turns";
+const CONCISE_MODE_STORAGE = "medvault_llm_concise_mode";
 const CHAT_HISTORY_STORAGE = "medvault_chat_history";
+
+type AIProvider = "gemini" | "openrouter";
 
 interface ChatMessage {
   role: "user" | "model";
@@ -14,7 +22,41 @@ interface ChatMessage {
 
 function loadApiKey(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem(API_KEY_STORAGE) || "";
+  return localStorage.getItem(API_KEY_STORAGE) || localStorage.getItem(LEGACY_GEMINI_API_KEY_STORAGE) || "";
+}
+
+function loadProvider(): AIProvider {
+  if (typeof window === "undefined") return "openrouter";
+  const provider = localStorage.getItem(API_PROVIDER_STORAGE);
+  return provider === "gemini" ? "gemini" : "openrouter";
+}
+
+function loadModel(provider: AIProvider): string {
+  if (typeof window === "undefined") return provider === "openrouter" ? "openrouter/auto" : "gemini-2.0-flash";
+  const saved = localStorage.getItem(MODEL_STORAGE);
+  if (saved) return saved;
+  return provider === "openrouter" ? "openrouter/auto" : "gemini-2.0-flash";
+}
+
+function loadMaxOutputTokens(): number {
+  if (typeof window === "undefined") return 512;
+  const raw = Number(localStorage.getItem(MAX_OUTPUT_TOKENS_STORAGE));
+  if (!Number.isFinite(raw) || raw < 64) return 512;
+  return Math.min(2048, Math.floor(raw));
+}
+
+function loadContextTurns(): number {
+  if (typeof window === "undefined") return 4;
+  const raw = Number(localStorage.getItem(CONTEXT_TURNS_STORAGE));
+  if (!Number.isFinite(raw) || raw < 1) return 4;
+  return Math.min(10, Math.floor(raw));
+}
+
+function loadConciseMode(): boolean {
+  if (typeof window === "undefined") return true;
+  const raw = localStorage.getItem(CONCISE_MODE_STORAGE);
+  if (raw === null) return true;
+  return raw === "true";
 }
 
 function loadChatHistory(): ChatMessage[] {
@@ -43,6 +85,7 @@ Rules:
 
 export default function AIChatView() {
   const { activeSubjectId, activeTopicId, subjects, topics } = useStore();
+  const [provider, setProvider] = useState<AIProvider>(loadProvider);
   const [apiKey, setApiKey] = useState(loadApiKey);
   const [showSettings, setShowSettings] = useState(!loadApiKey());
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
@@ -50,6 +93,10 @@ export default function AIChatView() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tempKey, setTempKey] = useState(loadApiKey);
+  const [model, setModel] = useState(loadModel(loadProvider()));
+  const [maxOutputTokens, setMaxOutputTokens] = useState<number>(loadMaxOutputTokens);
+  const [contextTurns, setContextTurns] = useState<number>(loadContextTurns);
+  const [conciseMode, setConciseMode] = useState<boolean>(loadConciseMode);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -67,10 +114,16 @@ export default function AIChatView() {
     const key = tempKey.trim();
     if (!key) return;
     localStorage.setItem(API_KEY_STORAGE, key);
+    localStorage.removeItem(LEGACY_GEMINI_API_KEY_STORAGE);
+    localStorage.setItem(API_PROVIDER_STORAGE, provider);
+    localStorage.setItem(MODEL_STORAGE, model.trim() || (provider === "openrouter" ? "openrouter/auto" : "gemini-2.0-flash"));
+    localStorage.setItem(MAX_OUTPUT_TOKENS_STORAGE, String(maxOutputTokens));
+    localStorage.setItem(CONTEXT_TURNS_STORAGE, String(contextTurns));
+    localStorage.setItem(CONCISE_MODE_STORAGE, String(conciseMode));
     setApiKey(key);
     setShowSettings(false);
     setError(null);
-  }, [tempKey]);
+  }, [tempKey, provider, model, maxOutputTokens, contextTurns, conciseMode]);
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
@@ -99,31 +152,60 @@ export default function AIChatView() {
         }
       }
 
-      // Build conversation history for Gemini API
-      const contents = [
-        { role: "user", parts: [{ text: MEDICAL_SYSTEM_PROMPT + contextAddition }] },
-        { role: "model", parts: [{ text: "Understood! I'm MedVault AI, ready to help you study medicine. Ask me anything!" }] },
-        ...updatedMessages.map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.text }],
-        })),
-      ];
+      // Keep only recent context turns to reduce token usage.
+      const recentMessages = updatedMessages.slice(-(contextTurns * 2));
+      const brevityInstruction = conciseMode
+        ? "\n\nToken policy: keep replies concise, avoid long preambles, prefer compact bullet points, and cap response length unless user asks for deep detail."
+        : "";
+      const systemPrompt = MEDICAL_SYSTEM_PROMPT + contextAddition + brevityInstruction;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
+      let response: Response;
+      if (provider === "openrouter") {
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
           body: JSON.stringify({
-            contents,
-            generationConfig: {
-              temperature: 0.7,
-              topP: 0.9,
-              maxOutputTokens: 2048,
-            },
+            model: model.trim() || "openrouter/auto",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...recentMessages.map((m) => ({
+                role: m.role === "user" ? "user" : "assistant",
+                content: m.text,
+              })),
+            ],
+            temperature: conciseMode ? 0.3 : 0.7,
+            max_tokens: maxOutputTokens,
           }),
-        }
-      );
+        });
+      } else {
+        const contents = [
+          { role: "user", parts: [{ text: systemPrompt }] },
+          { role: "model", parts: [{ text: "Understood! I'm MedVault AI, ready to help you study medicine. Ask me anything!" }] },
+          ...recentMessages.map((m) => ({
+            role: m.role === "user" ? "user" : "model",
+            parts: [{ text: m.text }],
+          })),
+        ];
+
+        response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.trim() || "gemini-2.0-flash")}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: conciseMode ? 0.3 : 0.7,
+                topP: 0.9,
+                maxOutputTokens,
+              },
+            }),
+          }
+        );
+      }
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -134,7 +216,9 @@ export default function AIChatView() {
       }
 
       const data = await response.json();
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response. Please try again.";
+      const aiText = provider === "openrouter"
+        ? (data?.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.")
+        : (data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response. Please try again.");
 
       const aiMessage: ChatMessage = { role: "model", text: aiText, timestamp: new Date().toISOString() };
       setMessages([...updatedMessages, aiMessage]);
@@ -144,7 +228,21 @@ export default function AIChatView() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, apiKey, messages, activeSubjectId, activeTopicId, subjects, topics]);
+  }, [
+    inputText,
+    isLoading,
+    apiKey,
+    messages,
+    activeSubjectId,
+    activeTopicId,
+    subjects,
+    topics,
+    provider,
+    model,
+    maxOutputTokens,
+    contextTurns,
+    conciseMode,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -199,14 +297,39 @@ export default function AIChatView() {
               className="px-3 py-2.5 rounded-[var(--radius-md)] text-xs text-[var(--text-secondary)] leading-relaxed mb-3"
               style={{ background: "var(--accent-glow)", border: "1px solid rgba(108, 92, 231, 0.15)" }}
             >
-              <p className="font-semibold text-[var(--accent-secondary)] mb-1">🆓 Get a FREE Gemini API Key</p>
+              <p className="font-semibold text-[var(--accent-secondary)] mb-1">🔌 Provider + Token Saver Setup</p>
               <ol className="list-decimal pl-3.5 space-y-0.5">
-                <li>Go to <strong>aistudio.google.com</strong></li>
-                <li>Sign in with your Google account</li>
-                <li>Click &quot;Get API Key&quot; → &quot;Create API Key&quot;</li>
-                <li>Copy and paste it below</li>
+                <li>Choose <strong>OpenRouter</strong> or <strong>Gemini</strong></li>
+                <li>Paste API key and model</li>
+                <li>Keep <strong>Max Output Tokens</strong> low (recommended: 256-768)</li>
+                <li>Keep <strong>Context Turns</strong> low (recommended: 3-5)</li>
               </ol>
-              <p className="mt-1.5 text-[var(--text-muted)]">Free tier: 15 requests/min, 1M tokens/day — more than enough for studying!</p>
+              <p className="mt-1.5 text-[var(--text-muted)]">Default settings are optimized to avoid burning tokens.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+              <button
+                onClick={() => setProvider("openrouter")}
+                className="px-3 py-2 rounded-[var(--radius-md)] text-xs font-semibold transition-all"
+                style={{
+                  background: provider === "openrouter" ? "var(--accent-glow)" : "var(--bg-tertiary)",
+                  color: provider === "openrouter" ? "var(--accent-secondary)" : "var(--text-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                OpenRouter
+              </button>
+              <button
+                onClick={() => setProvider("gemini")}
+                className="px-3 py-2 rounded-[var(--radius-md)] text-xs font-semibold transition-all"
+                style={{
+                  background: provider === "gemini" ? "var(--accent-glow)" : "var(--bg-tertiary)",
+                  color: provider === "gemini" ? "var(--accent-secondary)" : "var(--text-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                Gemini
+              </button>
             </div>
 
             <div className="flex gap-2">
@@ -214,7 +337,7 @@ export default function AIChatView() {
                 type="password"
                 value={tempKey}
                 onChange={(e) => setTempKey(e.target.value)}
-                placeholder="Paste your Gemini API key here..."
+                placeholder={provider === "openrouter" ? "Paste your OpenRouter API key..." : "Paste your Gemini API key..."}
                 className="flex-1 px-3 py-2 rounded-[var(--radius-md)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
                 style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)" }}
                 onKeyDown={(e) => { if (e.key === "Enter") saveApiKey(); }}
@@ -228,6 +351,45 @@ export default function AIChatView() {
                 Save
               </button>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+              <input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder={provider === "openrouter" ? "Model (e.g. openai/gpt-4o-mini)" : "Model (e.g. gemini-2.0-flash)"}
+                className="px-3 py-2 rounded-[var(--radius-md)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)" }}
+              />
+              <input
+                type="number"
+                min={64}
+                max={2048}
+                value={maxOutputTokens}
+                onChange={(e) => setMaxOutputTokens(Math.max(64, Math.min(2048, Number(e.target.value) || 512)))}
+                className="px-3 py-2 rounded-[var(--radius-md)] text-xs text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)" }}
+                title="Max output tokens"
+              />
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={contextTurns}
+                onChange={(e) => setContextTurns(Math.max(1, Math.min(10, Number(e.target.value) || 4)))}
+                className="px-3 py-2 rounded-[var(--radius-md)] text-xs text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)" }}
+                title="Context turns"
+              />
+            </div>
+
+            <label className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={conciseMode}
+                onChange={(e) => setConciseMode(e.target.checked)}
+              />
+              Concise mode (recommended to save tokens)
+            </label>
           </div>
         </div>
       )}
